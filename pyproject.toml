@@ -1,0 +1,10 @@
+[project]
+name = "118business"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "gspread>=6.2.1",
+    "playwright>=1.53.0",
+]

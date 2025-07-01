@@ -2,10 +2,14 @@ from playwright.async_api import async_playwright
 from google_sheets import GoogleSheets
 from model import ArticleModel
 import asyncio
+import json
 
 async def scrapper():
     sheets = GoogleSheets()
     existing_urls = sheets.get_existing_detail_urls() or set()  # Ensure fallback to empty set
+    category_counts = {}
+    category_urls_seen = {}
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=False)
         context = await browser.new_context()  # New context for isolation
@@ -68,6 +72,18 @@ async def scrapper():
                 print(f"📋 Found {len(article_links)} unique articles on this page: {article_links}")
 
                 new_article_links = [url for url in article_links if url not in existing_urls]
+                
+                if category_name not in category_urls_seen:
+                    category_urls_seen[category_name] = set()
+
+                # Count only new URLs per category
+                new_total = 0
+                for url in article_links:
+                    if url not in category_urls_seen[category_name]:
+                        category_urls_seen[category_name].add(url)
+                        new_total += 1
+
+                category_counts[category_name] = category_counts.get(category_name, 0) + new_total
 
                 if not new_article_links and not article_links:
                     print("⚠️ No articles found on this page. Moving to next category.")
@@ -166,7 +182,11 @@ async def scrapper():
                     page_number += 1
                 else:
                     print("✅ End of pagination for this category.")
+                    # 🔄 Save progress after each category
+                    with open("category_article_counts.json", "w") as f:
+                        json.dump(category_counts, f, indent=2)
                     break
+
         await context.close()
         await browser.close()
 
